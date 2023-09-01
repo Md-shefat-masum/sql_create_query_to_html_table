@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SQL schema to html table</title>
+    <style>
+        table {
+            border-collapse: collapse;
+        }
+
+        table td {
+            border: 1px solid black;
+            padding: 10px;
+            font-family: sans-serif;
+            font-size: 14px;
+        }
+    </style>
+</head>
+
+<body>
+    <textarea onkeyup="splitSql(event.target.value)" id="queries" style="width: 100%;border-radius: 5px;padding: 10px; height: 200px;box-sizing: border-box;">
+        CREATE TABLE IF NOT EXISTS `meal_management`.`users` (
+        `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+        `full_name` VARCHAR(200) NOT NULL,
+        `user_role` VARCHAR(15) NULL,
+        `photo` VARCHAR(50) NULL,
+        `email` VARCHAR(100) NULL,
+        `password` VARCHAR(50) NOT NULL,
+        `mobile` VARCHAR(20) NOT NULL,
+        `department` ENUM("IT", "IELTS", "SPOKEN", "EMPLOYEE") NOT NULL,
+        `address` VARCHAR(45) NOT NULL,
+        `status` TINYINT NULL DEFAULT 1,
+        `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+        `updated_at` VARCHAR(45) NULL DEFAULT 'CURRENT_TIMESTAMP',
+        UNIQUE INDEX `id_UNIQUE` (`id` ASC) VISIBLE,
+        PRIMARY KEY (`id`));
+    </textarea>
+    <button onclick="splitSql(queries.value)" >convert</button>
+    <br>
+    <br>
+    <div id="output"></div>
+    <script>
+        function sqlToHtml(sql) {
+
+            function parseName(sql) {
+                let start = sql.indexOf(".");
+                let end = sql.indexOf("(");
+                let table_name = sql.substring(start + 1, end);
+                return table_name;
+            }
+
+            function parseColumns2(sql) {
+                // Find the opening and closing parentheses of the column definitions
+                let start = sql.indexOf("(");
+                let end = sql.lastIndexOf(")");
+                // Get the substring between the parentheses
+                let columns = sql.substring(start + 1, end);
+                // Create an array to store the column names and types
+                let result = [];
+                // Create a variable to store the current column definition
+                let current = "";
+                // Create a variable to indicate whether we are inside an enum type
+                let inEnum = false;
+                // Loop through each character of the columns string
+                for (let i = 0; i < columns.length; i++) {
+                    // Get the current character
+                    let char = columns[i];
+                    // If the character is a comma and we are not inside an enum type, then we have a complete column definition
+                    if (char === "," && !inEnum) {
+                        // Trim any whitespace and push the current column definition to the result array
+                        result.push(current.trim());
+                        // Reset the current column definition
+                        current = "";
+                    } else {
+                        // Otherwise, append the character to the current column definition
+                        current += char;
+                        // If the character is an opening or closing parenthesis, toggle the inEnum flag
+                        if (char === "(" || char === ")") {
+                            inEnum = !inEnum;
+                        }
+                    }
+                }
+                // Push the last column definition to the result array if it is not empty
+                if (current.trim() !== "") {
+                    result.push(current.trim());
+                }
+                // Loop through each column definition in the result array
+                for (let i = 0; i < result.length; i++) {
+                    // Split the column name and type by space
+                    let parts = result[i].split(" ");
+                    // Replace the result element with an object containing the name and type properties
+                    result[i] = { name: parts[0], type: parts.splice(1).join(', ') };
+                }
+                // Return the result array
+                return result;
+            }
+
+            // Call the helper function to get the column names and types
+            let table_name = parseName(sql);
+            let columns = parseColumns2(sql);
+            // Create a variable to store the HTML table string
+            let html = "<table>\n";
+            // Add a table header row with the column names
+            html += "<tr><td colspan='2'><center>" + table_name + "</center></td></tr>"
+            for (let column of columns) {
+                html += "<tr>\n";
+                html += `<td>${column.name}</td>\n`;
+                html += `<td>${column.type}</td>\n`;
+                html += "</tr>\n";
+            }
+
+            html += "</table>";
+            // Return the HTML table string
+            return html;
+        }
+
+        function splitSql(sql) {
+            // Create an array to store the SQL queries
+            let result = [];
+            // Create a variable to store the current SQL query
+            let current = "";
+            // Loop through each character of the SQL string
+            for (let i = 0; i < sql.length; i++) {
+                // Get the current character
+                let char = sql[i];
+                // Append the character to the current SQL query
+                current += char;
+                // If the character is a semicolon, then we have a complete SQL query
+                if (char === ";") {
+                    // Trim any whitespace and push the current SQL query to the result array
+                    result.push(current.trim());
+                    // Reset the current SQL query
+                    current = "";
+                }
+            }
+            // Push the last SQL query to the result array if it is not empty
+            if (current.trim() !== "") {
+                result.push(current.trim());
+            }
+            // Return the result array
+            //return result;
+
+            output.innerHTML = result.map(i=>sqlToHtml(i));
+        }
+
+        let sql = `
+            CREATE TABLE IF NOT EXISTS \`meal_management\`.\`users\` (
+            \`id\` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            \`full_name\` VARCHAR(200) NOT NULL,
+            \`user_role\` VARCHAR(15) NULL,
+            \`photo\` VARCHAR(50) NULL,
+            \`email\` VARCHAR(100) NULL,
+            \`password\` VARCHAR(50) NOT NULL,
+            \`mobile\` VARCHAR(20) NOT NULL,
+            \`department\` ENUM("IT", "IELTS", "SPOKEN", "EMPLOYEE") NOT NULL,
+            \`address\` VARCHAR(45) NOT NULL,
+            \`status\` TINYINT NULL DEFAULT 1,
+            \`created_at\` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+            \`updated_at\` VARCHAR(45) NULL DEFAULT 'CURRENT_TIMESTAMP',
+            UNIQUE INDEX \`id_UNIQUE\` (\`id\` ASC) VISIBLE,
+            PRIMARY KEY (\`id\`));
+
+            CREATE TABLE IF NOT EXISTS \`meal_management\`.\`user_meals\` (
+            \`id\` BIGINT NOT NULL AUTO_INCREMENT,
+            \`users_id\` BIGINT UNSIGNED NOT NULL,
+            \`qty\` INT UNSIGNED NULL DEFAULT 1,
+            \`date\` DATE NULL,
+            \`status\` TINYINT NULL DEFAULT 1,
+            \`created_at\` TIMESTAMP NULL,
+            \`updated_at\` TIMESTAMP NULL,
+            \`creator\` BIGINT NULL,
+            PRIMARY KEY (\`id\`),
+            INDEX \`fk_user_meals_users1_idx\` (\`users_id\` ASC) VISIBLE,
+            CONSTRAINT \`fk_user_meals_users1\`
+                FOREIGN KEY (\`users_id\`)
+                REFERENCES \`meal_management\`.\`users\` (\`id\`)
+                ON DELETE NO ACTION
+                ON UPDATE NO ACTION);
+        `;
+
+        //console.log(splitSql(sql));
+        //output.innerHTML = sqlToHtml(sql);
+    </script>
+</body>
+
+</html>
